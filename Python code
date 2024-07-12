@@ -1,0 +1,95 @@
+from google.colab import drive
+drive.mount('/content/drive')
+import pandas as pd
+
+# 设置文件路径
+file_path = '/content/drive/MyDrive/Colab Notebooks/CPI.xlsx'
+
+# 读取 Excel 文件
+df = pd.read_excel(file_path)
+
+# 查看数据
+print(df.head())
+# 生成描述性统计数据
+descriptive_stats = df.describe()
+
+# 显示描述性统计数据
+print("Descriptive Statistics:")
+print(descriptive_stats)
+#平稳性检验
+import matplotlib.pyplot as plt
+
+def plot_trends(df, variable, treated_col, time_col):
+    treated = df[df[treated_col] == 1]
+    control = df[df[treated_col] == 0]
+
+    treated_means = treated.groupby(time_col)[variable].mean()
+    control_means = control.groupby(time_col)[variable].mean()
+
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(treated_means.index, treated_means.values, label='Treated', marker='o')
+    plt.plot(control_means.index, control_means.values, label='Control', marker='o')
+
+    plt.xlabel('Year')
+    plt.ylabel(variable)
+    plt.title(f'{variable} Trends: Treated vs Control')
+    plt.legend()
+    plt.show()
+
+plot_trends(df, 'Consumer Price Index', 'Belt and Road Initiative Country', 'Year')
+# 基准分析（DID分析）
+import statsmodels.formula.api as smf
+
+df['Post'] = df['Belt and Road Initiative']
+df['Treated_Post'] = df['Belt and Road Initiative Country'] * df['Post']
+
+model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") + Post + Treated_Post + Q("GDP Growth Rate") + Q("Unemployment Rate") + Q("Broad Money Growth Rate") + Q("Per Capita GNI Growth Rate")', data=df)
+results = model.fit()
+print(results.summary())
+# DID有效性检验（安慰剂检验）
+df['Placebo_Post'] = (df['Year'] > 1998).astype(int)
+df['Placebo_Treated_Post'] = df['Belt and Road Initiative Country'] * df['Placebo_Post']
+
+placebo_model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") + Placebo_Post + Placebo_Treated_Post + Q("GDP Growth Rate") + Q("Unemployment Rate") + Q("Broad Money Growth Rate") + Q("Per Capita GNI Growth Rate")', data=df)
+placebo_results = placebo_model.fit()
+print(placebo_results.summary())
+import pandas as pd
+import statsmodels.formula.api as smf
+from tabulate import tabulate
+
+
+df['Post'] = df['Belt and Road Initiative']
+df['Treated_Post'] = df['Belt and Road Initiative Country'] * df['Post']
+
+model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") + Post + Treated_Post + Q("GDP Growth Rate") + Q("Unemployment Rate") + Q("Broad Money Growth Rate") + Q("Per Capita GNI Growth Rate")', data=df)
+results = model.fit()
+
+summary = results.summary2().tables[1]
+
+# 使用 tabulate 格式化输出
+table = tabulate(summary, headers='keys', tablefmt='grid')
+
+print("DID Analysis Summary in Professional Format:")
+print(table)
+
+# DID有效性检验（安慰剂检验）
+df['Placebo_Post'] = (df['Year'] > 1998).astype(int)
+df['Placebo_Treated_Post'] = df['Belt and Road Initiative Country'] * df['Placebo_Post']
+
+placebo_model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") + Placebo_Post + Placebo_Treated_Post + Q("GDP Growth Rate") + Q("Unemployment Rate") + Q("Broad Money Growth Rate") + Q("Per Capita GNI Growth Rate")', data=df)
+placebo_results = placebo_model.fit()
+
+placebo_summary = placebo_results.summary2().tables[1]
+placebo_table = tabulate(placebo_summary, headers='keys', tablefmt='grid')
+
+print("Placebo Test Summary in Professional Format:")
+print(placebo_table)
+# 稳健性检验
+robust_model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") * Post + Q("GDP Growth Rate") + Q("Unemployment Rate")', data=df)
+robust_results = robust_model.fit()
+print(robust_results.summary())
+# 调解效应分析
+mediation_model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") * Post * Q("GDP Growth Rate")', data=df)
+mediation_results = mediation_model.fit()
+print(mediation_results.summary())
