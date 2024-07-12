@@ -71,6 +71,12 @@ def format_regression_results(results):
     summary['Coef.'] = summary.apply(lambda x: f"{x['Coef.']:.4f} {x['Significance']}", axis=1)
     summary = summary.drop(columns='Significance')
 
+    # Add sample size and R-squared
+    n = int(results.nobs)
+    r_squared = results.rsquared
+    summary.loc['n', 'Coef.'] = f'Sample size: {n}'
+    summary.loc['R²', 'Coef.'] = f'R²: {r_squared:.4f}'
+
     return summary
 
 did_table = format_regression_results(results)
