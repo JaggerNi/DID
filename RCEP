@@ -1,0 +1,155 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+import pandas as pd
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 读取数据
+df = pd.read_excel('/content/drive/MyDrive/Colab Notebooks/RCEP1.xlsx')
+
+import pandas as pd
+import statsmodels.formula.api as smf
+from tabulate import tabulate
+import matplotlib.pyplot as plt
+
+
+# 查看数据
+print(df.head())
+
+# 生成描述性统计数据
+descriptive_stats = df.describe()
+
+# 显示描述性统计数据
+print("Descriptive Statistics:")
+print(descriptive_stats)
+
+# 平行趋势检验
+def plot_trends(df, variable, treated_col, time_col):
+    treated = df[df[treated_col] == 1]
+    control = df[df[treated_col] == 0]
+
+    treated_means = treated.groupby(time_col)[variable].mean()
+    control_means = control.groupby(time_col)[variable].mean()
+
+    plt.figure(figsize=(10, 6))
+
+    plt.plot(treated_means.index, treated_means.values, label='Treated', marker='o')
+    plt.plot(control_means.index, control_means.values, label='Control', marker='o')
+
+    plt.xlabel('Year')
+    plt.ylabel(variable)
+    plt.title(f'China-Laos Bilateral Trade Trends: Treated vs Control')
+    plt.legend()
+    plt.show()
+
+plot_trends(df, 'BT', 'Treat', 'Year')
+
+# 基准分析（DID分析）
+df['Post'] = df['Post']
+df['Treated_Post'] = df['Treat'] * df['Post']
+
+model = smf.ols('Q("BT") ~ Q("Treat") + Post + Treated_Post + Q("GDP") + Q("ER") + Q("IR") + Q("FDI")', data=df)
+results = model.fit()
+
+# 格式化回归结果
+def format_regression_results(results):
+    summary = results.summary2().tables[1]
+    summary = summary[['Coef.', 'Std.Err.']]
+
+    p_values = results.pvalues
+
+    def add_stars(p):
+        if p < 0.001:
+            return '***'
+        elif p < 0.01:
+            return '**'
+        elif p < 0.05:
+            return '*'
+        else:
+            return ''
+
+    summary['Significance'] = p_values.apply(add_stars)
+    summary['Coef.'] = summary.apply(lambda x: f"{x['Coef.']:.4f} {x['Significance']}", axis=1)
+    summary = summary.drop(columns='Significance')
+
+    # Add sample size and R-squared
+    n = int(results.nobs)
+    r_squared = results.rsquared
+    summary.loc['n', 'Coef.'] = f'Sample size: {n}'
+    summary.loc['R²', 'Coef.'] = f'R²: {r_squared:.4f}'
+
+    return summary
+
+did_table = format_regression_results(results)
+table = tabulate(did_table, headers='keys', tablefmt='grid')
+
+print("DID Analysis Summary in Professional Format:")
+print(table)
+
+# DID有效性检验（安慰剂检验）
+df['Placebo_Post'] = (df['Year'] > 2010).astype(int)
+df['Placebo_Treated_Post'] = df['Treat'] * df['Placebo_Post']
+
+placebo_model = smf.ols('Q("BT") ~ Q("Treat") + Placebo_Post + Placebo_Treated_Post + Q("GDP") + Q("ER") + Q("IR") + Q("FDI")', data=df)
+placebo_results = placebo_model.fit()
+
+placebo_table = format_regression_results(placebo_results)
+placebo_table = tabulate(placebo_table, headers='keys', tablefmt='grid')
+
+print("Placebo Test Summary in Professional Format:")
+print(placebo_table)
+
+# 稳健性检验
+df['Post'] = df['Post']
+df['Treated_Post'] = df['Treat'] * df['Post']
+
+model = smf.ols('Q("BT") ~ Q("Treat") + Post + Treated_Post + Q("GDP") + Q("ER")', data=df)
+results = model.fit()
+
+# 格式化回归结果
+def format_regression_results(results):
+    summary = results.summary2().tables[1]
+    summary = summary[['Coef.', 'Std.Err.']]
+
+    p_values = results.pvalues
+
+    def add_stars(p):
+        if p < 0.001:
+            return '***'
+        elif p < 0.01:
+            return '**'
+        elif p < 0.05:
+            return '*'
+        else:
+            return ''
+
+    summary['Significance'] = p_values.apply(add_stars)
+    summary['Coef.'] = summary.apply(lambda x: f"{x['Coef.']:.4f} {x['Significance']}", axis=1)
+    summary = summary.drop(columns='Significance')
+
+    # Add sample size and R-squared
+    n = int(results.nobs)
+    r_squared = results.rsquared
+    summary.loc['n', 'Coef.'] = f'Sample size: {n}'
+    summary.loc['R²', 'Coef.'] = f'R²: {r_squared:.4f}'
+
+    return summary
+
+did_table = format_regression_results(results)
+table = tabulate(did_table, headers='keys', tablefmt='grid')
+
+print("DID Analysis Summary in Professional Format:")
+print(table)
+
+# 调解效应分析
+mediation_model = smf.ols('Q("BT") ~ Q("Treat") * Post * Q("GDP")', data=df)
+mediation_results = mediation_model.fit()
+
+mediation_table = format_regression_results(mediation_results)
+mediation_table = tabulate(mediation_table, headers='keys', tablefmt='grid')
+
+print("Mediation Effect Analysis Summary in Professional Format:")
+print(mediation_table)
