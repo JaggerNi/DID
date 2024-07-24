@@ -3,13 +3,7 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
-import statsmodels.formula.api as smf
 from tabulate import tabulate
-import matplotlib.pyplot as plt
-
-# Import necessary libraries
-import pandas as pd
 import requests
 from io import BytesIO
 
@@ -20,31 +14,27 @@ url = 'https://raw.githubusercontent.com/JaggerNi/DID/main/CPI.csv'
 response = requests.get(url)
 response.raise_for_status()  # Ensure we notice bad responses
 
-# Read the Excel file into a Pandas DataFrame
-excel_data = pd.read_csv(BytesIO(response.content))
+# Read the CSV file into a Pandas DataFrame
+csv_data = pd.read_csv(BytesIO(response.content))
 
 # Show the DataFrame
-display(excel_data)
+print(csv_data)
 
 # Convert Pandas DataFrame to Spark DataFrame if needed
-df = spark.createDataFrame(excel_data)
-
-# Show the Spark DataFrame
-df.show()
+# df = spark.createDataFrame(csv_data)
+# df.show()
 
 # 查看数据
-print(df.head())
+print(csv_data.head())
 
 # 生成描述性统计数据
-descriptive_stats = df.describe()
+descriptive_stats = csv_data.describe()
 
 # 显示描述性统计数据
 print("Descriptive Statistics:")
 print(descriptive_stats)
 
 # 平稳性检验
-import matplotlib.pyplot as plt
-
 def plot_trends(df, variable, treated_col, time_col):
     treated = df[df[treated_col] == 1]
     control = df[df[treated_col] == 0]
@@ -63,7 +53,49 @@ def plot_trends(df, variable, treated_col, time_col):
     plt.legend()
     plt.show()
 
-plot_trends(df, 'Consumer Price Index', 'Belt and Road Initiative Country', 'Year')
+plot_trends(csv_data, 'Consumer Price Index', 'Belt and Road Initiative Country', 'Year')
+
+# 基准分析（DID分析）
+csv_data['Post'] = csv_data['Belt and Road Initiative']
+csv_data['Treated_Post'] = csv_data['Belt and Road Initiative Country'] * csv_data['Post']
+
+model = smf.ols('Q("Consumer Price Index") ~ Q("Belt and Road Initiative Country") + Post + Treated_Post + Q("GDP Growth Rate") + Q("Unemployment Rate") + Q("Broad Money Growth Rate") + Q("Per Capita GNI Growth Rate")', data=csv_data)
+results = model.fit()
+
+# 格式化回归结果
+def format_regression_results(results):
+    summary = results.summary2().tables[1]
+    summary = summary[['Coef.', 'Std.Err.']]
+
+    p_values = results.pvalues
+
+    def add_stars(p):
+        if p < 0.001:
+            return '***'
+        elif p < 0.01:
+            return '**'
+        elif p < 0.05:
+            return '*'
+        else:
+            return ''
+
+    summary['Significance'] = p_values.apply(add_stars)
+    summary['Coef.'] = summary.apply(lambda x: f"{x['Coef.']:.4f} {x['Significance']}", axis=1)
+    summary = summary.drop(columns='Significance')
+
+    # Add sample size and R-squared
+    n = int(results.nobs)
+    r_squared = results.rsquared
+    summary.loc['n', 'Coef.'] = f'Sample size: {n}'
+    summary.loc['R²', 'Coef.'] = f'R²: {r_squared:.4f}'
+
+    return summary
+
+did_table = format_regression_results(results)
+table = tabulate(did_table, headers='keys', tablefmt='grid')
+
+print("DID Analysis Summary in Professional Format:")
+print(table)
 
 # 基准分析（DID分析）
 df['Post'] = df['Belt and Road Initiative']
