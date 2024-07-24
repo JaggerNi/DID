@@ -1,14 +1,26 @@
-from google.colab import drive
-drive.mount('/content/drive')
+# Import necessary libraries
 import pandas as pd
-import statsmodels.formula.api as smf
-from tabulate import tabulate
+import requests
+from io import BytesIO
 
-# 设置文件路径
-file_path = '/content/drive/MyDrive/Colab Notebooks/CPI.xlsx'
+# URL of the raw data file on GitHub
+url = 'https://raw.githubusercontent.com/JaggerNi/DID/main/CPI.xlsx'
 
-# 读取 Excel 文件
-df = pd.read_excel(file_path)
+# Fetch the data from the URL
+response = requests.get(url)
+response.raise_for_status()  # Ensure we notice bad responses
+
+# Read the Excel file into a Pandas DataFrame
+excel_data = pd.read_excel(BytesIO(response.content))
+
+# Show the DataFrame
+display(excel_data)
+
+# Convert Pandas DataFrame to Spark DataFrame if needed
+df = spark.createDataFrame(excel_data)
+
+# Show the Spark DataFrame
+df.show()
 
 # 查看数据
 print(df.head())
