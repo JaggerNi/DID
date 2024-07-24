@@ -1,19 +1,41 @@
-from google.colab import drive
-drive.mount('/content/drive')
-
 import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-# 读取数据
-df = pd.read_excel('/content/drive/MyDrive/Colab Notebooks/RCEP1.xlsx')
-
 import pandas as pd
 import statsmodels.formula.api as smf
 from tabulate import tabulate
 import matplotlib.pyplot as plt
+
+# Import necessary libraries
+import pandas as pd
+import requests
+from io import BytesIO
+
+# URL of the raw data file on GitHub
+url = 'https://raw.githubusercontent.com/JaggerNi/DID/main/CPI.xlsx'
+
+# Fetch the data from the URL
+response = requests.get(url)
+response.raise_for_status()  # Ensure we notice bad responses
+
+# Read the Excel file into a Pandas DataFrame
+excel_data = pd.read_excel(BytesIO(response.content))
+
+# Show the DataFrame
+display(excel_data)
+
+# Convert Pandas DataFrame to Spark DataFrame if needed
+df = spark.createDataFrame(excel_data)
+
+# Show the Spark DataFrame
+df.show()
+
+
+
+
+
 
 
 # 查看数据
