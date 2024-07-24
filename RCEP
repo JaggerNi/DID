@@ -14,14 +14,14 @@ import requests
 from io import BytesIO
 
 # URL of the raw data file on GitHub
-url = 'https://raw.githubusercontent.com/JaggerNi/DID/main/CPI.xlsx'
+url = 'https://raw.githubusercontent.com/JaggerNi/DID/main/RCEP1.csv'
 
 # Fetch the data from the URL
 response = requests.get(url)
 response.raise_for_status()  # Ensure we notice bad responses
 
 # Read the Excel file into a Pandas DataFrame
-excel_data = pd.read_excel(BytesIO(response.content))
+excel_data = pd.read_csv(BytesIO(response.content))
 
 # Show the DataFrame
 display(excel_data)
