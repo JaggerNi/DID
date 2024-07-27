@@ -1,1 +1,1 @@
-Use Colab to conduct DID analysis
+benchmark Regression and DID analysis
