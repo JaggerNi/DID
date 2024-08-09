@@ -1,0 +1,72 @@
+import pandas as pd
+import numpy as np
+from scipy.optimize import linprog
+import requests
+from io import BytesIO
+import matplotlib.pyplot as plt
+
+# 读取CSV文件
+url = 'https://raw.githubusercontent.com/JaggerNi/DID/main/dea.csv'
+response = requests.get(url)
+response.raise_for_status()
+data = pd.read_csv(BytesIO(response.content))
+
+# 提取需要的列
+years = data['Year']
+outputs = data['output'].values
+inputs = data[['input1', 'input2', 'input3', 'input4', 'input5']].values
+
+print("Inputs shape:", inputs.shape)
+print("Outputs shape:", outputs.shape)
+
+class DEA:
+    def __init__(self, inputs, outputs):
+        self.inputs = inputs
+        self.outputs = outputs
+        self.n, self.m = inputs.shape
+        self.efficiency = np.zeros((self.n, self.m))
+
+    def optimize(self, input_idx):
+        for unit in range(self.n):
+            c = np.r_[-1, np.zeros(self.n)]
+            A_ub = np.vstack([
+                np.r_[self.inputs[unit, input_idx], -self.inputs[:, input_idx]],
+                np.r_[-self.outputs[unit], self.outputs]
+            ])
+            b_ub = np.zeros(2)
+            A_eq = np.r_[0, np.ones(self.n)].reshape(1, -1)
+            b_eq = [1]
+            
+            res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, method='highs')
+            self.efficiency[unit, input_idx] = -res.fun
+
+    def fit(self):
+        for input_idx in range(self.m):
+            self.optimize(input_idx)
+        
+        print("Efficiency scores for each input:")
+        for input_idx in range(self.m):
+            print(f"\nInput {input_idx + 1}:")
+            for unit, eff in enumerate(self.efficiency[:, input_idx]):
+                print(f"Unit {unit + 1} (Year {years[unit]}): {eff:.4f}")
+
+        print("\nAverage efficiency scores for each input:")
+        avg_efficiency = np.mean(self.efficiency, axis=0)
+        for input_idx in range(self.m):
+            print(f"Input {input_idx + 1}: {avg_efficiency[input_idx]:.4f}")
+
+        # 绘制效率分数的热力图
+        plt.figure(figsize=(12, 8))
+        plt.imshow(self.efficiency, cmap='YlOrRd', aspect='auto')
+        plt.colorbar(label='Efficiency Score')
+        plt.xlabel('Inputs')
+        plt.ylabel('Units (Years)')
+        plt.title('Efficiency Scores Heatmap')
+        plt.xticks(range(self.m), [f'Input {i+1}' for i in range(self.m)])
+        plt.yticks(range(self.n), years)
+        plt.tight_layout()
+        plt.show()
+
+# 初始化DEA并运行
+dea = DEA(inputs, outputs)
+dea.fit()
